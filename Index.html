@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube dashboard</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--text:#1d1c1a;--muted:#6b6862;--line:#e4e1da;--accent:#c4302b;--accent2:#2b6cc4;--bar:#ebe8e1}
+@media(prefers-color-scheme:dark){:root{--bg:#151514;--card:#1f1e1c;--text:#ecebe7;--muted:#9a978f;--line:#33312e;--accent:#ef5a53;--accent2:#6ea3f0;--bar:#2c2a27;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:0}h2{font-size:1rem;margin:0 0 10px}
+.sub{color:var(--muted);font-size:.85rem}
+header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+nav{display:flex;gap:8px;margin-bottom:14px}
+button,select{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:12px}
+.two{display:grid;gap:12px;grid-template-columns:1fr;margin-bottom:12px}
+@media(min-width:850px){.two{grid-template-columns:1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;min-width:0}
+.two .card,.grid .card{margin-bottom:0}
+.kpi .l{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}.kpi .v{font-size:1.6rem;font-weight:700}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}.bar h2{margin:0;flex:1}
+svg{width:100%;height:auto;display:block}
+.gl{stroke:var(--line)}.ax{fill:var(--muted);font-size:10px}
+.ln{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}.b{fill:var(--accent2)}
+.pt{fill:transparent}.pt:hover{fill:var(--accent)}
+.hb{display:grid;grid-template-columns:150px 1fr 70px;gap:8px;align-items:center;font-size:.85rem;margin:4px 0}
+.hb i{height:10px;border-radius:5px;background:var(--bar);position:relative;display:block}
+.hb i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--accent2);border-radius:5px}
+.hb b{text-align:right;font-weight:500}
+.sc{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.85rem;min-width:620px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-size:.72rem;text-transform:uppercase}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--bar)}
+.note{border-left:3px solid var(--accent);padding:10px 14px;background:var(--card);border-radius:0 8px 8px 0}
+a{color:var(--accent2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1 id="ttl">YouTube dashboard</h1><div class="sub" id="upd"></div></header>
+<div id="msg"></div>
+<nav><button data-t="ch" class="on">Kanál</button><button data-t="vid">Video</button></nav>
+
+<section id="ch">
+ <div class="bar"><h2>Přehled</h2><select id="rng"><option value="30">30 dní</option><option value="90">90 dní</option><option value="365" selected>365 dní</option></select></div>
+ <div class="grid" id="k1"></div>
+ <div class="card"><div class="bar"><h2 id="t1"></h2><select id="m1"></select></div><div id="c1"></div></div>
+ <div class="two">
+  <div class="card"><h2>Počet odběratelů v čase</h2><div id="c2"></div></div>
+  <div class="card"><h2>Průměrná zhlédnutí podle dne v týdnu</h2><div id="c3"></div></div>
+ </div>
+ <div class="card"><div class="bar"><h2>Roční heatmapa</h2><select id="m2"></select></div><div id="hm"></div></div>
+ <div class="two">
+  <div class="card"><h2>Země diváků (zhlédnutí)</h2><div id="geo"></div></div>
+  <div class="card"><h2>Zdroje návštěvnosti</h2><div id="trf"></div></div>
+  <div class="card"><h2>Zařízení</h2><div id="dev"></div></div>
+  <div class="card"><h2>Věk a pohlaví (% diváků)</h2><div id="dem"></div></div>
+ </div>
+ <div class="card sc"><h2>Videa (klikni pro detail)</h2><table id="tbl"></table></div>
+</section>
+
+<section id="vid" hidden>
+ <div class="bar"><h2>Vyber video</h2><select id="vs" style="max-width:100%"></select></div>
+ <div class="sub" id="vinfo" style="margin-bottom:10px"></div>
+ <div class="grid" id="k2"></div>
+ <div class="card"><div class="bar"><h2 id="t2"></h2><select id="m3"></select></div><div id="c4"></div></div>
+ <div class="two">
+  <div class="card"><h2>Kumulativní zhlédnutí</h2><div id="c5"></div></div>
+  <div class="card"><h2>Udržení pozornosti (% diváků v daném místě videa)</h2><div id="c6"></div></div>
+  <div class="card"><h2>Země diváků</h2><div id="geo2"></div></div>
+  <div class="card"><h2>Poměr reakcí</h2><div id="ratio"></div></div>
+ </div>
+</section>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s),fmt=n=>Math.round(n).toLocaleString("cs-CZ");
+const M={views:"Zhlédnutí",minutes:"Minuty sledování",avgDur:"Prům. doba sledování",net:"Čistý přírůstek odběratelů",gained:"Nové odběry",lost:"Ztracené odběry",likes:"Líbí se",dislikes:"Nelíbí se",comments:"Komentáře",shares:"Sdílení"};
+const cz=s=>{const p=s.split("-");return +p[2]+". "+ +p[1]+". "+p[0]},sd=s=>{const p=s.split("-");return +p[2]+". "+ +p[1]+"."};
+const dur=s=>Math.floor(s/60)+":"+String(Math.round(s%60)).padStart(2,"0");
+const fv=(k,v)=>k=="avgDur"?dur(v):fmt(v);
+const sum=(a,i=0)=>{let t=0;for(;i<a.length;i++)t+=a[i];return t};
+function agg(d,k,i0){if(k=="avgDur"){const v=sum(d.views,i0);let t=0;for(let i=i0;i<d.views.length;i++)t+=d.avgDur[i]*d.views[i];return v?t/v:0}return sum(d[k],i0)}
+const prep=d=>{d.net=d.gained.map((g,i)=>g-d.lost[i])};
+const flag=c=>/^[A-Z]{2}$/.test(c)?String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt())):"";
+let RN;try{RN=new Intl.DisplayNames(["cs"],{type:"region"})}catch(e){}
+const cn=c=>flag(c)+" "+((RN&&RN.of(c))||c);
+const TS={YT_SEARCH:"Vyhledávání na YouTube",RELATED_VIDEO:"Navrhovaná videa",EXT_URL:"Externí weby",YT_CHANNEL:"Stránky kanálů",SUBSCRIBER:"Odběry (feed)",NOTIFICATION:"Oznámení",PLAYLIST:"Playlisty",SHORTS:"Shorts",NO_LINK_OTHER:"Přímé / jiné",YT_OTHER_PAGE:"Jiné stránky YouTube",END_SCREEN:"Koncové obrazovky",ADVERTISING:"Reklama",HASHTAGS:"Hashtagy"};
+const DV={MOBILE:"Mobil",DESKTOP:"Počítač",TV:"TV",TABLET:"Tablet",GAME_CONSOLE:"Konzole"};
+
+function chart(el,labels,vals,o={}){
+ const W=720,H=250,l=52,r=8,t=8,b=24,n=vals.length;
+ if(!n){el.innerHTML='<p class="sub">Žádná data</p>';return}
+ const mx=Math.max(...vals,1),mn=o.min!==undefined?o.min:Math.min(0,...vals),ff=o.f||fmt;
+ const X=i=>l+(n==1?0:i*(W-l-r)/(n-1)),Y=v=>t+(H-t-b)*(1-(v-mn)/((mx-mn)||1));
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+ for(let g=0;g<=4;g++){const v=mn+(mx-mn)*g/4,y=Y(v);s+=`<line x1="${l}" x2="${W-r}" y1="${y}" y2="${y}" class="gl"/><text x="${l-6}" y="${y+4}" text-anchor="end" class="ax">${ff(v)}</text>`}
+ if(o.bar){const bw=(W-l-r)/n,y0=Y(0);vals.forEach((v,i)=>{const y=Y(v);s+=`<rect x="${l+i*bw+.4}" y="${Math.min(y,y0)}" width="${Math.max(bw-.8,.8)}" height="${Math.abs(y0-y)}" class="b"><title>${labels[i]}: ${ff(v)}</title></rect>`})}
+ else{s+=`<polyline class="ln" points="${vals.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ")}"/>`;vals.forEach((v,i)=>{s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4" class="pt"><title>${labels[i]}: ${ff(v)}</title></circle>`})}
+ for(let k=0;k<5;k++){const i=Math.round(k*(n-1)/4);s+=`<text x="${X(i)}" y="${H-6}" text-anchor="${k==0?"start":k==4?"end":"middle"}" class="ax">${o.xl?o.xl(labels[i]):labels[i]}</text>`}
+ el.innerHTML=s+"</svg>"}
+
+function heat(el,days,vals,lab){
+ const mx=Math.max(...vals,1),c=13,g=3,off=(new Date(days[0]).getUTCDay()+6)%7,wk=Math.ceil((off+days.length)/7);
+ let s=`<svg viewBox="0 0 ${wk*(c+g)+30} ${7*(c+g)+16}" role="img">`,pm="";
+ ["Po","","St","","Pá","","Ne"].forEach((x,i)=>{s+=`<text x="0" y="${26+i*(c+g)}" class="ax">${x}</text>`});
+ days.forEach((d,i)=>{const p=i+off,x=30+Math.floor(p/7)*(c+g),y=14+(p%7)*(c+g),v=vals[i],m=d.slice(0,7);
+  if(m!=pm&&p%7<4){s+=`<text x="${x}" y="9" class="ax">${+d.slice(5,7)}.</text>`;pm=m}
+  s+=`<rect x="${x}" y="${y}" width="${c}" height="${c}" rx="2" style="fill:${v>0?"var(--accent)":"var(--bar)"};fill-opacity:${v>0?(.2+.8*v/mx).toFixed(2):1}"><title>${cz(d)}: ${fmt(v)} ${lab}</title></rect>`});
+ el.innerHTML=s+"</svg>"}
+
+function hb(el,rows,f){const mx=Math.max(...rows.map(r=>r[1]),1);el.innerHTML=rows.length?rows.map(r=>`<div class="hb"><span>${r[0]}</span><i style="--w:${100*r[1]/mx}%"></i><b>${f?f(r[1]):fmt(r[1])}</b></div>`).join(""):'<p class="sub">Žádná data</p>'}
+
+function kpis(el,d,i0){const nt=agg(d,"net",i0);
+ el.innerHTML=[["Zhlédnutí",fmt(agg(d,"views",i0))],["Hodiny sledování",fmt(agg(d,"minutes",i0)/60)],["Prům. doba sledování",dur(agg(d,"avgDur",i0))],["Odběratelé (čistě)",(nt>0?"+":"")+nt],["Líbí se",fmt(agg(d,"likes",i0))],["Nelíbí se",fmt(agg(d,"dislikes",i0))]]
+ .map(x=>`<div class="card kpi"><div class="l">${x[0]}</div><div class="v">${x[1]}</div></div>`).join("")}
+
+let D,S={n:365,k:"views",h:"views",vk:"views",v:null};
+const opts=(el,v)=>{el.innerHTML=Object.keys(M).map(k=>`<option value="${k}">${M[k]}</option>`).join("");el.value=v};
+
+function renderCh(){
+ const d=D.daily,N=D.days.length,n=Math.min(S.n,N),i0=N-n,days=D.days.slice(i0);
+ kpis($("#k1"),d,i0);
+ $("#t1").textContent=M[S.k];
+ chart($("#c1"),days,d[S.k].slice(i0),{bar:S.k!="avgDur",f:x=>fv(S.k,x),xl:sd});
+ let tot=D.channel.subs;const cum=[];for(let i=N-1;i>=0;i--){cum[i]=tot;tot-=d.net[i]}
+ chart($("#c2"),days,cum.slice(i0),{min:Math.min(...cum.slice(i0)),xl:sd});
+ const wd=[0,0,0,0,0,0,0],wc=[0,0,0,0,0,0,0];days.forEach((x,i)=>{const w=(new Date(x).getUTCDay()+6)%7;wd[w]+=d.views[i0+i];wc[w]++});
+ hb($("#c3"),["Pondělí","Úterý","Středa","Čtvrtek","Pátek","Sobota","Neděle"].map((x,i)=>[x,wc[i]?wd[i]/wc[i]:0]),x=>x.toFixed(1));
+ heat($("#hm"),D.days,d[S.h],M[S.h].toLowerCase());
+ const rows=a=>a||[];
+ hb($("#geo"),rows(D.countries).slice(0,12).map(r=>[cn(r.k),r.v]));
+ hb($("#trf"),rows(D.traffic).map(r=>[TS[r.k]||r.k,r.v]));
+ hb($("#dev"),rows(D.devices).map(r=>[DV[r.k]||r.k,r.v]));
+ hb($("#dem"),rows(D.demographics).map(r=>[r.k.replace("age","").replace("_","–").replace("female","žena").replace("male","muž").replace("user_specified","jiné"),r.v]),x=>x.toFixed(1)+" %");
+ $("#tbl").innerHTML="<thead><tr><th>Video</th><th>Publikováno</th><th>Zhlédnutí</th><th>Hodiny</th><th>Prům. doba</th><th>Líbí se</th><th>Nelíbí se</th><th>Odběry</th></tr></thead><tbody>"+
+  D.videos.slice().sort((a,b)=>b.views-a.views).map(v=>`<tr data-id="${v.id}"><td>${v.title}</td><td>${cz(v.published.slice(0,10))}</td><td>${fmt(v.views)}</td><td>${fmt(sum(v.daily.minutes)/60)}</td><td>${dur(agg(v.daily,"avgDur",0))}</td><td>${fmt(sum(v.daily.likes))}</td><td>${fmt(sum(v.daily.dislikes))}</td><td>${fmt(sum(v.daily.gained)-sum(v.daily.lost))}</td></tr>`).join("")+"</tbody>";
+ document.querySelectorAll("#tbl tbody tr").forEach(tr=>tr.onclick=()=>{S.v=tr.dataset.id;$("#vs").value=S.v;tab("vid")})}
+
+function renderV(){
+ const v=D.videos.find(x=>x.id==S.v)||D.videos[0],d=v.daily;if(!v)return;
+ $("#vinfo").innerHTML=`<a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">${v.title}</a> · publikováno ${cz(v.published.slice(0,10))} · délka ${dur(v.duration)}`;
+ kpis($("#k2"),d,0);
+ $("#t2").textContent=M[S.vk];
+ chart($("#c4"),v.days,d[S.vk],{bar:S.vk!="avgDur"&&v.days.length<400,f:x=>fv(S.vk,x),xl:sd});
+ let c=0;chart($("#c5"),v.days,d.views.map(x=>c+=x),{xl:sd});
+ const r=v.retention||[];chart($("#c6"),r.map((x,i)=>(i+1)+" % délky"),r.map(x=>x*100),{f:x=>Math.round(x)+" %",min:0,xl:x=>x.split(" ")[0]+" %"});
+ hb($("#geo2"),(v.countries||[]).map(x=>[cn(x.k),x.v]));
+ const L=sum(d.likes),Di=sum(d.dislikes),vw=sum(d.views);
+ hb($("#ratio"),[["Líbí se / 100 zhlédnutí",vw?100*L/vw:0],["Komentáře / 100 zhlédnutí",vw?100*sum(d.comments)/vw:0],["Sdílení / 100 zhlédnutí",vw?100*sum(d.shares)/vw:0],["Podíl „líbí se“ z hodnocení",L+Di?100*L/(L+Di):0]],x=>x.toFixed(1))}
+
+function tab(t){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==t));$("#ch").hidden=t!="ch";$("#vid").hidden=t!="vid";if(t=="vid")renderV()}
+
+function start(){
+ prep(D.daily);D.videos.forEach(v=>prep(v.daily));
+ $("#ttl").textContent=D.channel.title;$("#upd").textContent="Aktualizováno: "+D.updated.replace("T"," ").slice(0,16)+" UTC";
+ opts($("#m1"),S.k);opts($("#m2"),S.h);opts($("#m3"),S.vk);
+ $("#vs").innerHTML=D.videos.slice().sort((a,b)=>b.views-a.views).map(v=>`<option value="${v.id}">${v.title}</option>`).join("");S.v=$("#vs").value;
+ $("#rng").onchange=e=>{S.n=+e.target.value;renderCh()};$("#m1").onchange=e=>{S.k=e.target.value;renderCh()};$("#m2").onchange=e=>{S.h=e.target.value;renderCh()};
+ $("#m3").onchange=e=>{S.vk=e.target.value;renderV()};$("#vs").onchange=e=>{S.v=e.target.value;renderV()};
+ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.t));
+ renderCh()}
+
+function demo(){
+ let s=7;const R=()=>(s=s*16807%2147483647)/2147483647,days=[],t0=Date.UTC(2025,10,12);
+ for(let i=0;i<365;i++)days.push(new Date(t0+i*864e5).toISOString().slice(0,10));
+ const gen=(n,sc)=>{const o={views:[],minutes:[],avgDur:[],gained:[],lost:[],likes:[],dislikes:[],comments:[],shares:[]};
+  for(let i=0;i<n;i++){const x=Math.round(sc*(.5+R())*(1+.5*Math.sin(i/20)));o.views.push(x);o.minutes.push(x*3);o.avgDur.push(150+Math.round(R()*60));o.gained.push(R()<.05?1:0);o.lost.push(R()<.02?1:0);o.likes.push(Math.round(x*.04*R()*2));o.dislikes.push(R()<.1?1:0);o.comments.push(R()<.05?1:0);o.shares.push(R()<.1?1:0)}return o};
+ const vids=[1,2,3,4].map(i=>{const n=60+i*70,dd=gen(n,10*i);return{id:"demo"+i,title:"Ukázkové video "+i,published:days[365-n]+"T10:00:00Z",duration:120+i*90,views:sum(dd.views),days:days.slice(365-n),daily:dd,retention:Array.from({length:100},(_,k)=>1-k/130-R()*.03),countries:[{k:"CZ",v:300*i},{k:"SK",v:90*i},{k:"DE",v:30*i}]}});
+ return{updated:new Date().toISOString(),channel:{title:"DEMO – ukázková data",subs:70,views:27461,videos:4},days,daily:gen(365,40),
+  countries:[{k:"CZ",v:9000},{k:"SK",v:1800},{k:"DE",v:600},{k:"US",v:300}],traffic:[{k:"YT_SEARCH",v:5000},{k:"RELATED_VIDEO",v:3000},{k:"EXT_URL",v:1500}],devices:[{k:"MOBILE",v:6000},{k:"DESKTOP",v:4000},{k:"TV",v:500}],
+  demographics:[{k:"age25-34_male",v:30},{k:"age35-44_male",v:22},{k:"age25-34_female",v:9}],videos:vids}}
+
+if(/[?&]demo/.test(location.search)){D=demo();$("#msg").innerHTML='<div class="note" style="margin-bottom:12px">Zobrazena <b>ukázková data</b> (náhodně generovaná), ne tvůj skutečný kanál.</div>';start()}
+else fetch("data.json?"+Date.now()).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{D=j;start()}).catch(()=>{$("#msg").innerHTML='<div class="note">Soubor <b>data.json</b> se nepodařilo načíst. Spusť workflow „Update data“ na GitHubu (viz README), nebo si náhled rozložení zobraz přidáním <a href="?demo">?demo</a> k adrese. Při otevření souboru přímo z disku (file://) prohlížeč načtení data.json blokuje, stránka musí běžet z webu (GitHub Pages) nebo z lokálního serveru.</div>'});
+})();
+</script>
+</body>
+</html>
