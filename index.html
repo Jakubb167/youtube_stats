@@ -31,7 +31,13 @@ svg{width:100%;height:auto;display:block}
 .gl{stroke:var(--line)}.ax{fill:var(--muted);font-size:10px}
 .ln{fill:none;stroke-width:2;stroke-linejoin:round}.ma{fill:none;stroke:var(--text);stroke-width:1.5;stroke-dasharray:4 3;opacity:.7}
 .b{fill:var(--accent2)}.ov{fill:transparent}.ov:hover{fill:var(--text);fill-opacity:.07}
-.rs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}.rs input{width:100%}.rl{text-align:center;margin-top:2px}
+.rs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}.rs input{width:100%}.rl{display:flex;justify-content:space-between;margin-top:4px}
+.rb{text-align:right;margin-bottom:4px}.rst{padding:3px 10px;font-size:.78rem}
+.nav{position:relative;height:56px;background:var(--bar);border-radius:6px;touch-action:none;user-select:none;cursor:pointer}
+.nav svg{position:absolute;inset:0;width:100%;height:100%}
+.dl,.dr{position:absolute;top:0;bottom:0;background:rgba(128,128,128,.35)}.dl{left:0}.dr{right:0}
+.win{position:absolute;top:0;bottom:0;border-top:2px solid var(--accent2);border-bottom:2px solid var(--accent2);background:rgba(43,108,196,.15);cursor:grab}
+.hl,.hr{position:absolute;top:-2px;bottom:-2px;width:10px;background:var(--accent2);cursor:ew-resize;border-radius:3px}.hl{left:-5px}.hr{right:-5px}
 .hb{display:grid;grid-template-columns:150px 1fr 70px;gap:8px;align-items:center;font-size:.85rem;margin:4px 0}
 .hb span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hb i{height:10px;border-radius:5px;background:var(--bar);position:relative;display:block}
@@ -67,7 +73,7 @@ a{color:var(--accent2)}
 
 <section id="ch">
  <div class="grid" id="k1"></div>
- <div class="card"><div class="bar"><h2 id="t1"></h2><select id="m1"></select></div><div id="c1"></div><div class="sub">Čárkovaně: klouzavý průměr 7 dní. Posuvníky pod grafem ořezávají osu x zleva a zprava.</div></div>
+ <div class="card"><div class="bar"><h2 id="t1"></h2><select id="m1"></select></div><div id="c1"></div><div class="sub">Čárkovaně: klouzavý průměr 7 dní. Pod grafem táhni modré okno (posun) nebo jeho okraje (ořez zleva/zprava); Reset vrátí celý rozsah.</div></div>
  <div class="card"><h2>Srovnání videí (jedna čára = jedno video)</h2>
   <div class="cmp"><div><div class="bar"><select id="m4"></select><label class="sub"><input type="checkbox" id="cum"> kumulativně</label></div><div id="c7"></div></div>
   <div><div class="bar"><button id="all1">Všechna</button><button id="all0">Žádné</button></div><div id="vl"></div></div></div></div>
@@ -145,11 +151,28 @@ function svg(lb,S,o){
 
 function chart(el,lb,S,o={}){
  const n=lb.length;if(!n){el.innerHTML='<p class="sub">Žádná data v tomto období</p>';return}
- const st=el._s&&el._s.n==n?el._s:(el._s={n,a:0,b:n-1});
- el.innerHTML=`<div></div><div class="rs"><input type="range" min="0" max="${n-1}" value="${st.a}"><input type="range" min="0" max="${n-1}" value="${st.b}"></div><div class="sub rl"></div>`;
- const box=el.children[0],[ra,rb]=el.querySelectorAll("input"),cap=el.children[2],lf=o.lab||cz;
- const draw=()=>{box.innerHTML=svg(lb.slice(st.a,st.b+1),S.map(c=>({...c,vals:c.vals.slice(st.a,st.b+1)})),o);cap.textContent=lf(lb[st.a])+" – "+lf(lb[st.b])};
- ra.oninput=()=>{st.a=Math.min(+ra.value,st.b);ra.value=st.a;draw()};rb.oninput=()=>{st.b=Math.max(+rb.value,st.a);rb.value=st.b;draw()};draw()}
+ const st=el._s&&el._s.n==n?el._s:(el._s={n,a:0,b:n-1}),lf=o.lab||cz,m=Math.max(n-1,1);
+ let mx=1,mn=o.min!==undefined?o.min:0;
+ S.forEach(c=>{for(const v of c.vals)if(v!=null){if(v>mx)mx=v;if(o.min===undefined&&v<mn)mn=v}});
+ const mini=S.map(c=>{let d="",pen=0;c.vals.forEach((v,i)=>{if(v==null){pen=0;return}d+=(pen?"L":"M")+(i/m*720).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*50).toFixed(1);pen=1});return `<path d="${d}" style="fill:none;stroke:${c.color||"var(--accent)"};stroke-width:1.2;vector-effect:non-scaling-stroke;opacity:.75"/>`}).join("");
+ el.innerHTML=`<div class="rb"><button class="rst">↺ Reset</button></div><div></div><div class="nav"><svg viewBox="0 0 720 60" preserveAspectRatio="none">${mini}</svg><i class="dl"></i><i class="dr"></i><div class="win"><i class="hl"></i><i class="hr"></i></div></div><div class="sub rl"><span>${lf(lb[0])}</span><span></span><span>${lf(lb[n-1])}</span></div>`;
+ const box=el.children[1],nav=el.children[2],win=nav.querySelector(".win"),dl=nav.querySelector(".dl"),dr=nav.querySelector(".dr"),cap=el.children[3].children[1];
+ const draw=()=>{box.innerHTML=svg(lb.slice(st.a,st.b+1),S.map(c=>({...c,vals:c.vals.slice(st.a,st.b+1)})),o);cap.textContent=lf(lb[st.a])+" – "+lf(lb[st.b]);
+  const L=st.a/m*100,Wd=Math.max((st.b-st.a)/m*100,.6);win.style.left=L+"%";win.style.width=Wd+"%";dl.style.width=L+"%";dr.style.width=Math.max(0,100-L-Wd)+"%"};
+ let md=null;
+ const ix=e=>{const r=nav.getBoundingClientRect();return Math.round(Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*m)};
+ nav.onpointerdown=e=>{const t=e.target,c=ix(e);
+  md={k:t.classList.contains("hl")?"l":t.classList.contains("hr")?"r":"m",x:c,a:st.a,b:st.b};
+  if(!win.contains(t)){const w=st.b-st.a;st.a=Math.max(0,Math.min(n-1-w,c-Math.round(w/2)));st.b=st.a+w;md.a=st.a;md.b=st.b;draw()}
+  nav.setPointerCapture(e.pointerId);e.preventDefault()};
+ nav.onpointermove=e=>{if(!md)return;const dx=ix(e)-md.x;
+  if(md.k=="l")st.a=Math.max(0,Math.min(md.a+dx,st.b));
+  else if(md.k=="r")st.b=Math.min(n-1,Math.max(md.b+dx,st.a));
+  else{const w=md.b-md.a;st.a=Math.max(0,Math.min(n-1-w,md.a+dx));st.b=st.a+w}
+  draw()};
+ nav.onpointerup=nav.onpointercancel=()=>{md=null};
+ el.querySelector(".rst").onclick=()=>{st.a=0;st.b=n-1;draw()};
+ draw()}
 
 function heat(el,days,vals,lab){
  if(!days.length){el.innerHTML='<p class="sub">Žádná data</p>';return}
