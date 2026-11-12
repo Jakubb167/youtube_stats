@@ -236,18 +236,19 @@ function kpis(el,d,a,b){
 let D,G={from:"",to:"",vis:"all",k:"views",ck:"views",cum:false,off:new Set(),h:"views",h2:"views",vk:"views",v:null,q:"",sort:{k:"views",d:-1}},idx={},CC={};
 const R=days=>{let a=days.findIndex(x=>x>=G.from);if(a<0)a=days.length;let b=days.length-1;while(b>=0&&days[b]>G.to)b--;return[a,b]};
 const VL=()=>D.videos.filter(v=>G.vis=="all"||(G.vis=="public")==((v.privacy||"public")=="public"));
-const vr=v=>{const o=idx[v.days[0]]||0,[a,b]=R(D.days);return[Math.max(0,a-o),Math.min(v.days.length-1,b-o)]};
+const off0=v=>Math.round((Date.parse(v.days[0])-Date.parse(D.days[0]))/864e5);
+const vr=v=>{const o=off0(v),[a,b]=R(D.days);return[Math.max(0,a-o),Math.min(v.days.length-1,b-o)]};
 function chan(){
  if(G.vis=="all")return D.daily;if(CC[G.vis])return CC[G.vis];
  const n=D.days.length,o={};K.forEach(k=>o[k]=Array(n).fill(0));
- VL().forEach(v=>{const off=idx[v.days[0]];v.days.forEach((_,i)=>{const j=off+i;K.forEach(k=>{if(k!="avgDur")o[k][j]+=v.daily[k][i]});o.avgDur[j]+=v.daily.avgDur[i]*v.daily.views[i]})});
+ VL().forEach(v=>{const off=off0(v);v.days.forEach((_,i)=>{const j=off+i;if(j<0)return;K.forEach(k=>{if(k!="avgDur")o[k][j]+=v.daily[k][i]});o.avgDur[j]+=v.daily.avgDur[i]*v.daily.views[i]})});
  for(let i=0;i<n;i++)o.avgDur[i]=o.views[i]?o.avgDur[i]/o.views[i]:0;prep(o);return CC[G.vis]=o}
 const opts=(el,v)=>{el.innerHTML=Object.keys(M).map(k=>`<option value="${k}">${M[k]}</option>`).join("");el.value=v};
 
 function renderCmp(){
  const [a,b]=R(D.days),sl=D.days.slice(a,b+1);
  $("#vl").innerHTML=VL().map(v=>`<label><input type="checkbox" data-id="${v.id}" ${G.off.has(v.id)?"":"checked"}><b style="background:${col(D.videos.indexOf(v))}"></b>${esc(v.title)}</label>`).join("");
- const ser=VL().filter(v=>!G.off.has(v.id)).map(v=>{const o=idx[v.days[0]],base=G.cum&&G.ck!="avgDur"?(c=>v.daily[G.ck].map(x=>c+=x))(0):v.daily[G.ck],vals=[];
+ const ser=VL().filter(v=>!G.off.has(v.id)).map(v=>{const o=off0(v),base=G.cum&&G.ck!="avgDur"?(c=>v.daily[G.ck].map(x=>c+=x))(0):v.daily[G.ck],vals=[];
   for(let i=a;i<=b;i++){const j=i-o;vals.push(j<0||j>=base.length?null:base[j])}
   return{name:v.title,vals,color:col(D.videos.indexOf(v))}});
  chart($("#c7"),sl,ser,{f:x=>fv(G.ck,x),xl:sd});renderMore()}
@@ -323,6 +324,8 @@ function tab(t){$$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t=
 function start(){
  prep(D.daily);D.videos.forEach(v=>prep(v.daily));D.days.forEach((d,i)=>idx[d]=i);
  const N=D.days.length;
+ const first=D.videos.reduce((m,v)=>v.days[0]<m?v.days[0]:m,"9999");
+ if(first<D.days[0])$("#msg").innerHTML='<div class="note" style="margin-bottom:12px">Denní data kanálu v <b>data.json</b> začínají '+cz(D.days[0])+', ale nejstarší video je z '+cz(first)+'. Spusť znovu <b>Actions → Update data</b> s aktuálním <code>fetch_data.py</code>, aby se stáhla celá historie.</div>';
  $("#ttl").textContent=D.channel.title;$("#upd").textContent="Aktualizováno: "+D.updated.replace("T"," ").slice(0,16)+" UTC";
  opts($("#m1"),G.k);opts($("#m2"),G.h);opts($("#m3"),G.vk);opts($("#m4"),G.ck);opts($("#m5"),G.h2);
  $("#vs").innerHTML=D.videos.slice().sort((p,q)=>q.views-p.views).map(v=>`<option value="${v.id}">${esc(v.title)}${(v.privacy||"public")=="public"?"":" [neveřejné]"}</option>`).join("");G.v=$("#vs").value;
