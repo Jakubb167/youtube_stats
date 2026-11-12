@@ -14,7 +14,7 @@ h1{font-size:1.5rem;margin:0}h2{font-size:1rem;margin:0 0 10px}
 .sub{color:var(--muted);font-size:.85rem}
 header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 nav{display:flex;gap:8px;margin-bottom:12px}
-button,select,input[type=date]{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button,select,input[type=date],input[type=search]{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
 button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ctl{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 .seg{display:flex;gap:4px;flex-wrap:wrap}.seg button{padding:5px 10px}
@@ -55,6 +55,11 @@ th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-size:.7
 tbody tr{cursor:pointer}tbody tr:hover{background:var(--bar)}
 .note{border-left:3px solid var(--accent);padding:10px 14px;background:var(--card);border-radius:0 8px 8px 0}
 a{color:var(--accent2)}
+.th{width:96px;height:54px;object-fit:cover;border-radius:4px;display:block;background:var(--bar)}
+#tb2{min-width:1250px}#tb2 th{cursor:pointer;white-space:nowrap}#tb2 th:last-child{cursor:default}
+#tb2 td:nth-child(2),#tb2 th:nth-child(2){text-align:left;min-width:220px;white-space:normal}
+#tb2 td:first-child,#tb2 th:first-child{text-align:left;width:106px}
+.spk{width:90px;height:24px;display:block;margin-left:auto}
 </style>
 </head>
 <body>
@@ -69,7 +74,7 @@ a{color:var(--accent2)}
 </div>
 <div class="sub" id="vnote" style="margin:-4px 0 10px"></div>
 
-<nav><button data-t="ch" class="on">Kanál</button><button data-t="vid">Video</button></nav>
+<nav><button data-t="ch" class="on">Kanál</button><button data-t="vid">Video</button><button data-t="tab">Tabulka videí</button></nav>
 
 <section id="ch">
  <div class="grid" id="k1"></div>
@@ -83,6 +88,13 @@ a{color:var(--accent2)}
  </div>
  <div class="card"><div class="bar"><h2>Heatmapa (posledních 365 dní zvoleného období)</h2><select id="m2"></select></div><div id="hm"></div></div>
  <div class="card"><h2>Videa: udržení pozornosti vs. zhlédnutí (osa y logaritmická, velikost = líbí se)</h2><div id="scat"></div></div>
+ <div class="card"><h2>Měsíční souhrn (metrika podle hlavního grafu)</h2><div id="mon"></div></div>
+ <div class="two">
+  <div class="card"><h2>Start videí: kumulativní zhlédnutí od publikace (prvních 180 dní)</h2><div id="age"></div></div>
+  <div class="card"><h2>Udržení pozornosti: srovnání vybraných videí</h2><div id="rtc"></div></div>
+  <div class="card"><h2>Podíl videí na zhlédnutích (zvolené období)</h2><div id="shv"></div></div>
+  <div class="card"><h2>Čisté odběry podle videí (zvolené období)</h2><div id="shs"></div></div>
+ </div>
  <div class="two">
   <div class="card"><h2>Země diváků (za celou dobu)</h2><div id="geo"></div></div>
   <div class="card"><h2>Jak diváci kanál nacházejí (za celou dobu)</h2><div id="trf"></div></div>
@@ -111,6 +123,12 @@ a{color:var(--accent2)}
   <div class="card"><h2>Země diváků</h2><div id="geo2"></div></div>
   <div class="card"><h2>Poměr reakcí</h2><div id="ratio"></div></div>
  </div>
+</section>
+
+<section id="tab" hidden>
+ <div class="card"><div class="bar"><h2>Tabulka videí ve zvoleném období</h2><input type="search" id="q" placeholder="Hledat podle názvu…"><button id="csv">Export CSV</button></div>
+  <div class="sc"><table id="tb2"></table></div>
+  <div class="sub" style="margin-top:8px">Klikni na záhlaví sloupce pro řazení, na řádek pro detail videa. Zapojení = (líbí se + komentáře + sdílení) / zhlédnutí. % pozitivních = líbí se / (líbí se + nelíbí se). Trend = zhlédnutí v čase ve zvoleném období.</div></div>
 </section>
 </div>
 
@@ -215,7 +233,7 @@ function kpis(el,d,a,b){
   return `<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div>${dl}</div>`}).join("")}
 
 /* ---------- stav ---------- */
-let D,G={from:"",to:"",vis:"all",k:"views",ck:"views",cum:false,off:new Set(),h:"views",h2:"views",vk:"views",v:null},idx={},CC={};
+let D,G={from:"",to:"",vis:"all",k:"views",ck:"views",cum:false,off:new Set(),h:"views",h2:"views",vk:"views",v:null,q:"",sort:{k:"views",d:-1}},idx={},CC={};
 const R=days=>{let a=days.findIndex(x=>x>=G.from);if(a<0)a=days.length;let b=days.length-1;while(b>=0&&days[b]>G.to)b--;return[a,b]};
 const VL=()=>D.videos.filter(v=>G.vis=="all"||(G.vis=="public")==((v.privacy||"public")=="public"));
 const vr=v=>{const o=idx[v.days[0]]||0,[a,b]=R(D.days);return[Math.max(0,a-o),Math.min(v.days.length-1,b-o)]};
@@ -232,7 +250,7 @@ function renderCmp(){
  const ser=VL().filter(v=>!G.off.has(v.id)).map(v=>{const o=idx[v.days[0]],base=G.cum&&G.ck!="avgDur"?(c=>v.daily[G.ck].map(x=>c+=x))(0):v.daily[G.ck],vals=[];
   for(let i=a;i<=b;i++){const j=i-o;vals.push(j<0||j>=base.length?null:base[j])}
   return{name:v.title,vals,color:col(D.videos.indexOf(v))}});
- chart($("#c7"),sl,ser,{f:x=>fv(G.ck,x),xl:sd})}
+ chart($("#c7"),sl,ser,{f:x=>fv(G.ck,x),xl:sd});renderMore()}
 
 function renderCh(){
  const d=chan(),days=D.days,[a,b]=R(days),sl=days.slice(a,b+1),vl=VL();
@@ -256,7 +274,7 @@ function renderCh(){
  hb($("#dem"),ro(D.demographics).map(r=>[r.k.replace("age","").replace("_","–").replace("female","žena").replace("male","muž").replace("user_specified","jiné"),r.v]),x=>x.toFixed(1)+" %");
  $("#tbl").innerHTML="<thead><tr><th>Video</th><th>Stav</th><th>Publikováno</th><th>Zhlédnutí</th><th>Hodiny</th><th>Prům. doba</th><th>Líbí se</th><th>Nelíbí se</th><th>Odběry</th></tr></thead><tbody>"+
   vl.map(v=>{const [i,j]=vr(v);return{v,i,j,w:sum(v.daily.views,i,j)}}).sort((p,q)=>q.w-p.w).map(({v,i,j,w})=>`<tr data-id="${v.id}"><td>${esc(v.title)}</td><td>${(v.privacy||"public")=="public"?"veřejné":"neveřejné"}</td><td>${cz(v.published.slice(0,10))}</td><td>${fmt(w)}</td><td>${fmt(sum(v.daily.minutes,i,j)/60)}</td><td>${dur(agg(v.daily,"avgDur",i,j))}</td><td>${fmt(sum(v.daily.likes,i,j))}</td><td>${fmt(sum(v.daily.dislikes,i,j))}</td><td>${fmt(sum(v.daily.gained,i,j)-sum(v.daily.lost,i,j))}</td></tr>`).join("")+"</tbody>";
- $$("#tbl tbody tr").forEach(tr=>tr.onclick=()=>{G.v=tr.dataset.id;$("#vs").value=G.v;tab("vid")})}
+ $$("#tbl tbody tr").forEach(tr=>tr.onclick=()=>{G.v=tr.dataset.id;$("#vs").value=G.v;renderV();tab("vid")})}
 
 function renderV(){
  const v=D.videos.find(x=>x.id==G.v);if(!v)return;
@@ -275,9 +293,32 @@ function renderV(){
  const L=sum(d.likes,i,j),Di=sum(d.dislikes,i,j),vw=sum(d.views,i,j);
  hb($("#ratio"),[["Líbí se / 100 zhlédnutí",vw?100*L/vw:0],["Komentáře / 100 zhlédnutí",vw?100*sum(d.comments,i,j)/vw:0],["Sdílení / 100 zhlédnutí",vw?100*sum(d.shares,i,j)/vw:0],["Podíl „líbí se“ z hodnocení",L+Di?100*L/(L+Di):0]],x=>x.toFixed(1))}
 
-const all=()=>{renderCh();renderV()};
+const vrows=()=>VL().map(v=>{const [i,j]=vr(v),d=v.daily,w=sum(d.views,i,j),L=sum(d.likes,i,j),Di=sum(d.dislikes,i,j),dy=Math.max(0,j-i+1),ad=agg(d,"avgDur",i,j),cm=sum(d.comments,i,j),sh=sum(d.shares,i,j);
+ return{v,i,j,title:v.title,pub:v.published,dur:v.duration,views:w,vpd:dy?w/dy:0,hours:sum(d.minutes,i,j)/60,avg:ad,pctv:v.duration?100*ad/v.duration:0,likes:L,dislikes:Di,ratio:L+Di?100*L/(L+Di):0,comments:cm,shares:sh,subs:sum(d.gained,i,j)-sum(d.lost,i,j),eng:w?100*(L+cm+sh)/w:0}});
+const COLS=[["title","Video"],["pub","Publikováno"],["dur","Délka"],["views","Zhlédnutí"],["vpd","Zhl. / den"],["hours","Hodiny"],["avg","Prům. doba"],["pctv","Prům. % videa"],["likes","Líbí se"],["dislikes","Nelíbí se"],["ratio","% pozitivních"],["comments","Komentáře"],["shares","Sdílení"],["subs","Odběry"],["eng","Zapojení %"]];
+const cell=(k,r)=>k=="title"?esc(r.title)+((r.v.privacy||"public")=="public"?"":' <span class="sub">[neveřejné]</span>'):k=="pub"?cz(r.pub.slice(0,10)):k=="dur"||k=="avg"?dur(r[k]):k=="pctv"||k=="ratio"?Math.round(r[k])+" %":k=="vpd"||k=="eng"?r[k].toFixed(1):fmt(r[k]);
+const tabRows=()=>{const q=G.q.toLowerCase(),k=G.sort.k,d=G.sort.d;return vrows().filter(r=>r.title.toLowerCase().includes(q)).sort((a,b)=>(typeof a[k]=="string"?a[k].localeCompare(b[k]):a[k]-b[k])*d)};
+const spark=a=>{if(a.length<2)return"";const nb=Math.min(a.length,60),bk=[];for(let x=0;x<nb;x++)bk.push(sum(a,Math.floor(x*a.length/nb),Math.floor((x+1)*a.length/nb)-1));let mx=1;bk.forEach(v=>{if(v>mx)mx=v});return `<svg class="spk" viewBox="0 0 90 24" preserveAspectRatio="none"><path d="${bk.map((v,x)=>(x?"L":"M")+(x*90/(nb-1)).toFixed(1)+","+(22-20*v/mx).toFixed(1)).join("")}" style="fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke"/></svg>`};
+function renderTab(){
+ const RW=tabRows();
+ $("#tb2").innerHTML="<thead><tr><th></th>"+COLS.map(([k,l])=>`<th data-k="${k}">${l}${k==G.sort.k?(G.sort.d>0?" ▲":" ▼"):""}</th>`).join("")+"<th>Trend</th></tr></thead><tbody>"+
+  RW.map(r=>`<tr data-id="${r.v.id}"><td><img class="th" loading="lazy" alt="" src="https://i.ytimg.com/vi/${r.v.id}/mqdefault.jpg"></td>`+COLS.map(([k])=>`<td>${cell(k,r)}</td>`).join("")+`<td>${spark(r.v.daily.views.slice(r.i,r.j+1))}</td></tr>`).join("")+"</tbody>"}
+function renderMore(){
+ const d=chan(),days=D.days,[a,b]=R(days),sel=VL().filter(v=>!G.off.has(v.id)),mo={};
+ for(let i=a;i<=b;i++){const k=days[i].slice(0,7),o=mo[k]||(mo[k]={v:0,t:0,x:0});o.v+=d.views[i];o.t+=d.avgDur[i]*d.views[i];if(G.k!="avgDur")o.x+=d[G.k][i]}
+ const ks=Object.keys(mo),ml=s=>s.slice(5)+"/"+s.slice(0,4);
+ chart($("#mon"),ks,[{name:M[G.k],vals:ks.map(k=>G.k=="avgDur"?(mo[k].v?mo[k].t/mo[k].v:0):mo[k].x)}],{bar:true,f:x=>fv(G.k,x),lab:ml,xl:ml});
+ const L=180;
+ chart($("#age"),Array.from({length:L},(_,i)=>"den "+(i+1)),sel.map(v=>{let c=0;return{name:v.title,color:col(D.videos.indexOf(v)),vals:Array.from({length:L},(_,i)=>i<v.daily.views.length?(c+=v.daily.views[i]):null)}}),{lab:s=>s,xl:s=>s.replace("den ","")+". den"});
+ const rs=sel.filter(v=>(v.retention||[]).length),nl=rs.reduce((m,v)=>Math.max(m,v.retention.length),0);
+ chart($("#rtc"),Array.from({length:nl},(_,i)=>Math.round((i+1)*100/nl)+" %"),rs.map(v=>({name:v.title,color:col(D.videos.indexOf(v)),vals:v.retention.map(x=>x*100)})),{min:0,f:x=>Math.round(x)+" %",lab:s=>s,xl:s=>s});
+ const rw=vrows(),tv=sum(rw.map(r=>r.views))||1;
+ hb($("#shv"),rw.slice().sort((p,q)=>q.views-p.views).filter(r=>r.views>0).slice(0,10).map(r=>[r.title,100*r.views/tv]),x=>x.toFixed(1)+" %");
+ hb($("#shs"),rw.slice().sort((p,q)=>q.subs-p.subs).filter(r=>r.subs>0).slice(0,10).map(r=>[r.title,r.subs]))}
+
+const all=()=>{renderCh();renderV();renderTab()};
 function setRange(f,t){G.from=f;G.to=t;$("#df").value=f;$("#dt").value=t;all()}
-function tab(t){$$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==t));$("#ch").hidden=t!="ch";$("#vid").hidden=t!="vid"}
+function tab(t){$$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==t));$("#ch").hidden=t!="ch";$("#vid").hidden=t!="vid";$("#tab").hidden=t!="tab"}
 
 function start(){
  prep(D.daily);D.videos.forEach(v=>prep(v.daily));D.days.forEach((d,i)=>idx[d]=i);
@@ -295,6 +336,9 @@ function start(){
  $("#vl").onchange=e=>{const id=e.target.dataset.id;e.target.checked?G.off.delete(id):G.off.add(id);renderCmp()};
  $("#all1").onclick=()=>{G.off.clear();renderCmp()};$("#all0").onclick=()=>{VL().forEach(v=>G.off.add(v.id));renderCmp()};
  $$("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.t));
+ $("#q").oninput=e=>{G.q=e.target.value;renderTab()};
+ $("#tb2").onclick=e=>{const th=e.target.closest("th[data-k]");if(th){const k=th.dataset.k;G.sort=G.sort.k==k?{k,d:-G.sort.d}:{k,d:k=="title"?1:-1};renderTab();return}const tr=e.target.closest("tbody tr");if(tr){G.v=tr.dataset.id;$("#vs").value=G.v;renderV();tab("vid")}};
+ $("#csv").onclick=()=>{const t=[COLS.map(c=>c[1]).join(";"),...tabRows().map(r=>COLS.map(([k])=>k=="title"?'"'+r.title.replace(/"/g,'""')+'"':k=="pub"?r.pub.slice(0,10):Math.round(r[k]*100)/100).join(";"))].join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv"}));a.download="videa.csv";a.click()};
  setRange(D.days[Math.max(0,N-365)],D.days[N-1])}
 
 function demo(){
