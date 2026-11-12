@@ -81,18 +81,23 @@ def secs(iso):
 
 videos = []
 for i in range(0, len(ids), 50):
-    for v in get(Y + "/videos", part="snippet,contentDetails,statistics", id=",".join(ids[i:i + 50]))["items"]:
+    for v in get(Y + "/videos", part="snippet,contentDetails,statistics,status", id=",".join(ids[i:i + 50]))["items"]:
         pub = v["snippet"]["publishedAt"]
         start = max(pub[:10], "2017-01-01")
         days, daily = series(start, "video==" + v["id"])
         ret = [r["audienceWatchRatio"] for r in rep(["audienceWatchRatio"], "elapsedVideoTimeRatio", "video==" + v["id"], start)]
+        vf = "video==" + v["id"]
         videos.append(dict(id=v["id"], title=v["snippet"]["title"], published=pub,
+                           privacy=v.get("status", {}).get("privacyStatus", "public"),
                            duration=secs(v["contentDetails"]["duration"]),
                            views=int(v["statistics"].get("viewCount", 0)),
                            days=days, daily=daily, retention=ret,
-                           countries=top("country", "views", "video==" + v["id"], 10, start)))
+                           countries=top("country", "views", vf, 10, start),
+                           traffic=top("insightTrafficSourceType", "views", vf, 15, start),
+                           search=top("insightTrafficSourceDetail", "views", vf + ";insightTrafficSourceType==YT_SEARCH", 25, start),
+                           ext=top("insightTrafficSourceDetail", "views", vf + ";insightTrafficSourceType==EXT_URL", 15, start)))
 
-days, daily = series((today - dt.timedelta(days=365)).isoformat())
+days, daily = series(min(v["published"][:10] for v in videos))
 st = ch["statistics"]
 data = dict(
     updated=dt.datetime.utcnow().isoformat(timespec="seconds"),
@@ -101,6 +106,8 @@ data = dict(
     days=days, daily=daily,
     countries=top("country", "views"),
     traffic=top("insightTrafficSourceType", "views"),
+    search=top("insightTrafficSourceDetail", "views", "insightTrafficSourceType==YT_SEARCH", 25),
+    ext=top("insightTrafficSourceDetail", "views", "insightTrafficSourceType==EXT_URL", 15),
     devices=top("deviceType", "views"),
     demographics=[{"k": f'{r["ageGroup"]}_{r["gender"]}', "v": r["viewerPercentage"]}
                   for r in rep(["viewerPercentage"], "ageGroup,gender", start=(today - dt.timedelta(days=365)).isoformat())],
