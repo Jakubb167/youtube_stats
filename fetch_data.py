@@ -72,9 +72,11 @@ while True:
 
 
 def secs(iso):
-    m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso)
-    h, mi, s = (int(x or 0) for x in m.groups())
-    return h * 3600 + mi * 60 + s
+    m = re.match(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$", iso or "")
+    if not m:
+        return 0
+    d, h, mi, s = (int(x or 0) for x in m.groups())
+    return d * 86400 + h * 3600 + mi * 60 + s
 
 
 videos = []
