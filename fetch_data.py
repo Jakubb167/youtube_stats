@@ -4,10 +4,18 @@ A = "https://youtubeanalytics.googleapis.com/v2/reports"
 Y = "https://www.googleapis.com/youtube/v3"
 S = requests.Session()
 
+cfg = {k: os.environ.get(k, "").strip() for k in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN")}
+print("Delky secretu:", {k: len(v) for k, v in cfg.items()})  # tiskne jen delku, ne hodnoty
+missing = [k for k, v in cfg.items() if not v]
+if missing:
+    raise SystemExit("CHYBI SECRETY (prazdne): " + ", ".join(missing) +
+                     " - zkontroluj nazvy v Settings > Secrets and variables > Actions > Repository secrets")
+
 r = requests.post("https://oauth2.googleapis.com/token", data={
-    "client_id": os.environ["YT_CLIENT_ID"], "client_secret": os.environ["YT_CLIENT_SECRET"],
-    "refresh_token": os.environ["YT_REFRESH_TOKEN"], "grant_type": "refresh_token"})
-r.raise_for_status()
+    "client_id": cfg["YT_CLIENT_ID"], "client_secret": cfg["YT_CLIENT_SECRET"],
+    "refresh_token": cfg["YT_REFRESH_TOKEN"], "grant_type": "refresh_token"})
+if not r.ok:
+    raise SystemExit(f"Google odmitl prihlaseni: {r.status_code} {r.text}")
 S.headers["Authorization"] = "Bearer " + r.json()["access_token"]
 
 today = dt.date.today()
